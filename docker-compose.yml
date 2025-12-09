@@ -1,0 +1,61 @@
+version: '3.8'
+
+# Interna
+networks:
+  kata-network:
+    driver: bridge
+
+services:
+  # 1. Backend express
+  backend-node:
+    build: ./backend-node 
+    container_name: kata-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - JWT_SECRET=tu_secreto_super_seguro_kata
+      - AI_ENGINE_URL=http://engine-python:8000
+      - ELASTIC_URL=http://elasticsearch:9200
+    depends_on:
+      - engine-python
+      - elasticsearch
+    networks:
+      - kata-network
+
+  # 2. Microservicio en FastAPI-IA
+  engine-python:
+    build: ./engine-python 
+    container_name: kata-ai-engine
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+    networks:
+      - kata-network
+
+  # 3. Elasticsearch - Base de datos de logs
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    container_name: kata-elastic
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - kata-network
+
+  # 4. Kibana (visualización de logs)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.10
+    container_name: kata-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - kata-network
+
